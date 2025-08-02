@@ -1,20 +1,21 @@
 <template>
   <q-layout view="hHh lpR fFf">
     <q-header elevated class="bg-primary text-white" height-hint="98">
-      <q-toolbar>
+      <!-- <q-toolbar>
         <q-toolbar-title>
           <q-avatar size="32px" class="q-mr-sm">
             <img src="~assets/logo.png" alt="LoanCalc Admin Logo" />
           </q-avatar>
           LoanCalc Admin
         </q-toolbar-title>
-      </q-toolbar>
+      </q-toolbar> -->
 
       <q-toolbar class="main-tabs-toolbar">
         <q-tabs align="left" class="main-tabs">
           <q-route-tab to="/home" label="Inicio" icon="home" />
           <q-route-tab to="/dashboard" label="Carga Productos" icon="add_shopping_cart" />
           <q-route-tab to="/interes" label="Interes" icon="attach_money" />
+          <q-route-tab to="/users" label="Usuarios" icon="group" />
         </q-tabs>
 
         <q-space />

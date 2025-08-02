@@ -9,7 +9,12 @@ const routes = [
       { path: 'dashboard', component: () => import('pages/DashboardPage.vue') }, //
       // { path: 'max-upload', component: () => import('pages/MaxUploadPage.vue') }, //
       // { path: 'create-user', component: () => import('pages/CreateUserPage.vue') }, //
-      { path: 'interes', component: () => import('pages/InteresPage.vue') }, // <-- NUEVA RUTA PARA "INTERES"
+      { path: 'interes', component: () => import('pages/InteresPage.vue') },
+      {
+        path: 'users',
+        component: () => import('pages/UsersPage.vue'),
+        meta: { requiresAuth: true },
+      },
     ],
   },
   {

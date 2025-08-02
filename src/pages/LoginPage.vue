@@ -46,6 +46,13 @@
               class="full-width q-mt-md"
               @click="router.push('/register')"
             />
+            <q-btn
+              label="Olvidé mi contraseña"
+              flat
+              color="primary"
+              class="full-width q-mt-sm"
+              @click="handleForgotPassword"
+            />
           </div>
         </q-form>
 
@@ -58,9 +65,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-// 'useQuasar' se eliminó porque no se usaba directamente en esta lógica. Si necesitas notificaciones, puedes descomentarlo.
+import { useQuasar } from 'quasar'
 
 const router = useRouter()
+const $q = useQuasar()
 
 const email = ref('')
 const password = ref('')
@@ -69,7 +77,6 @@ const errorMessage = ref('')
 const loading = ref(false)
 
 onMounted(() => {
-  // Cargar credenciales guardadas desde localStorage, si existen
   const savedEmail = localStorage.getItem('savedEmail')
   const savedPassword = localStorage.getItem('savedPassword')
   if (savedEmail && savedPassword) {
@@ -80,25 +87,21 @@ onMounted(() => {
 })
 
 async function onSubmit() {
-  errorMessage.value = '' // Limpiar mensaje de error previo
+  errorMessage.value = ''
   loading.value = true
 
-  // Guardar credenciales en localStorage si el usuario marcó "Recordar usuario"
   if (rememberMe.value) {
     localStorage.setItem('savedEmail', email.value)
     localStorage.setItem('savedPassword', password.value)
   } else {
-    // Limpiar credenciales guardadas si la casilla no está marcada
     localStorage.removeItem('savedEmail')
     localStorage.removeItem('savedPassword')
   }
 
   try {
-    // Llamar a la función de login expuesta por Electron Preload
     const result = await window.electron.login(email.value, password.value)
 
     if (result.success) {
-      // Redirigir a la página de inicio (home)
       router.push('/home')
     } else {
       errorMessage.value = result.error
@@ -109,17 +112,58 @@ async function onSubmit() {
     loading.value = false
   }
 }
+
+async function handleForgotPassword() {
+  $q.dialog({
+    title: 'Restablecer Contraseña',
+    message: 'Ingresa tu correo electrónico para enviarte un enlace de restablecimiento.',
+    prompt: {
+      model: '',
+      type: 'email',
+    },
+    cancel: true,
+    persistent: true,
+  }).onOk(async (data) => {
+    if (!data) {
+      $q.notify({
+        color: 'negative',
+        message: 'Debes ingresar un correo electrónico.',
+      })
+      return
+    }
+
+    try {
+      const result = await window.electron.resetPassword(data)
+      if (result.success) {
+        $q.notify({
+          color: 'positive',
+          message: 'Se ha enviado un enlace de restablecimiento a tu correo.',
+          icon: 'check',
+        })
+      } else {
+        $q.notify({
+          color: 'negative',
+          message: 'Error: ' + result.error,
+        })
+      }
+    } catch (error) {
+      $q.notify({
+        color: 'negative',
+        message: 'Error inesperado: ' + error.message,
+      })
+    }
+  })
+}
 </script>
 
 <style lang="scss" scoped>
 .login-page-bg {
-  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); /* Fondo animado de index.html */
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
   overflow: hidden;
   position: relative;
-  min-height: 100vh; /* Asegura que el div ocupe toda la altura */
+  min-height: 100vh;
 
   &::before {
-    /* Fondo animado */
     content: '';
     position: absolute;
     top: 0;
@@ -186,11 +230,7 @@ async function onSubmit() {
 }
 
 .login-btn {
-  background: linear-gradient(
-    90deg,
-    #3498db,
-    #2a5298
-  ); /* Mismo gradiente que btn-primary en index.html */
+  background: linear-gradient(90deg, #3498db, #2a5298);
   border: none;
   font-size: 16px;
   font-weight: 600;

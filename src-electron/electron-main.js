@@ -10,7 +10,8 @@ import {
   getAuth, //
   signInWithEmailAndPassword, //
   signOut, //
-  createUserWithEmailAndPassword, //
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail, //
 } from 'firebase/auth' //
 import {
   //
@@ -126,6 +127,34 @@ app.on('activate', () => {
 })
 
 // --- COMIENZO DE MANEJADORES IPC MAIN COPIADOS DE TU ANTIGUO main.js ---
+
+// Obtener todos los usuarios
+ipcMain.handle('get-users', async () => {
+  try {
+    const usersCollection = collection(db, 'users')
+    const userSnapshot = await getDocs(usersCollection)
+    const usersList = userSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+    return { success: true, data: usersList }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+})
+
+// Actualizar el rol de un usuario
+ipcMain.handle('update-user-role', async (event, userId, newRole) => {
+  try {
+    const userDocRef = doc(db, 'users', userId)
+    await updateDoc(userDocRef, {
+      role: newRole,
+    })
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+})
 
 // Manejar login
 ipcMain.handle('login', async (event, email, password) => {
@@ -461,4 +490,21 @@ ipcMain.handle('update-interest', async (event, docId, value) => {
     return { success: false, error: error.message }
   }
 })
+
+ipcMain.handle('reset-password', async (event, email) => {
+  try {
+    await sendPasswordResetEmail(auth, email)
+    return { success: true }
+  } catch (error) {
+    let errorMessage = error.message
+    // Personaliza los mensajes de error de Firebase si lo deseas
+    if (error.code === 'auth/user-not-found') {
+      errorMessage = 'No se encontró ningún usuario con ese correo electrónico.'
+    } else if (error.code === 'auth/invalid-email') {
+      errorMessage = 'El formato del correo electrónico es inválido.'
+    }
+    return { success: false, error: errorMessage }
+  }
+})
+
 // --- FIN DE MANEJADORES IPC MAIN COPIADOS DE TU ANTIGUO main.js ---
