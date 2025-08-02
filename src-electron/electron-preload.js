@@ -26,4 +26,8 @@ contextBridge.exposeInMainWorld('electron', {
 
   loadInterest: () => ipcRenderer.invoke('load-interest'),
   updateInterest: (docId, value) => ipcRenderer.invoke('update-interest', docId, value),
+  resetPassword: (email) => ipcRenderer.invoke('reset-password', email),
+
+  getUsers: () => ipcRenderer.invoke('get-users'),
+  updateUserRole: (userId, newRole) => ipcRenderer.invoke('update-user-role', userId, newRole),
 })

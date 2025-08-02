@@ -27,11 +27,11 @@
                   v-model="productForm.type"
                   label="Tipo de Maquinaria"
                   :options="[
-                    'pala_cargadora',
+                    'pala cargadora',
                     'tractor',
                     'montacargas',
                     'apilador',
-                    'retro_pala',
+                    'retro pala',
                     'excavadora',
                   ]"
                   required
@@ -51,7 +51,7 @@
                   filled
                   v-model="productForm.fuelType"
                   label="Movido a"
-                  :options="['diesel', 'combustible']"
+                  :options="['Diesel', 'Nafta/Gas', 'Eléctrico', 'Manual']"
                   required
                 />
               </div>
@@ -276,7 +276,9 @@ async function onSubmitProductForm() {
 
   try {
     const productData = { ...productForm.value }
-    // Los QFile devuelven objetos File, necesitamos leer su ArrayBuffer para pasarlos por IPC
+
+    productData.price = parseFloat(productData.price)
+
     const imageFile =
       productForm.value.image instanceof File
         ? { name: productForm.value.image.name, data: await productForm.value.image.arrayBuffer() }
