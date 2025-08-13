@@ -33,6 +33,9 @@
                     'apilador',
                     'retro pala',
                     'excavadora',
+                    'transpaleta',
+                    'separador de pedidos',
+                    'generadores',
                   ]"
                   required
                 />
@@ -42,7 +45,15 @@
                   filled
                   v-model="productForm.brand"
                   label="Marca"
-                  :options="['noblelift', 'michigan', 'koten', 'maximal', 'lugong', 'hanomag']"
+                  :options="[
+                    'noblelift',
+                    'michigan',
+                    'koten',
+                    'maximal',
+                    'lugong',
+                    'hanomag',
+                    'otros',
+                  ]"
                   required
                 />
               </div>
