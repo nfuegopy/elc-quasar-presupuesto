@@ -189,6 +189,15 @@ export default defineConfig((/* ctx */) => {
         // https://www.electron.build/configuration/configuration
 
         appId: 'loancalc-admin-quasar',
+        productName: 'Engine S.A.', // <--- AÑADE ESTA LÍNEA
+        win: {
+          //                      <--- AÑADE ESTA SECCIÓN
+          icon: 'src-electron/icons/icon.png',
+        },
+        mac: {
+          //                      <--- AÑADE ESTA SECCIÓN (opcional, para macOS)
+          icon: 'src-electron/icons/icon.png',
+        },
       },
 
       // --- COMIENZO DE LA SECCIÓN AÑADIDA PARA XLSX ---

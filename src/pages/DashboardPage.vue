@@ -36,6 +36,8 @@
                     'transpaleta',
                     'separador de pedidos',
                     'generadores',
+                    'sembradoras',
+                    'forestal',
                   ]"
                   required
                 />
@@ -52,6 +54,8 @@
                     'maximal',
                     'lugong',
                     'hanomag',
+                    'fercam',
+                    'xuvol',
                     'otros',
                   ]"
                   required
