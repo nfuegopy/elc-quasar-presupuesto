@@ -27,7 +27,7 @@
             :rules="[(val) => (val && val.length > 0) || 'Por favor, ingresa tu contraseña']"
           />
 
-          <q-checkbox v-model="rememberMe" label="Recordar usuario" class="q-mt-md" />
+          <q-checkbox v-model="rememberMe" label="Recordar correo" class="q-mt-md" />
 
           <div>
             <q-btn
@@ -39,13 +39,6 @@
             >
               <q-spinner v-if="loading" color="white" size="1em" class="q-ml-sm" />
             </q-btn>
-            <q-btn
-              label="Registrar nuevo administrador"
-              flat
-              color="grey-8"
-              class="full-width q-mt-md"
-              @click="router.push('/register')"
-            />
             <q-btn
               label="Olvidé mi contraseña"
               flat
@@ -77,11 +70,11 @@ const errorMessage = ref('')
 const loading = ref(false)
 
 onMounted(() => {
+  // Antes se guardaba también la contraseña en texto plano; se elimina si quedó guardada
+  localStorage.removeItem('savedPassword')
   const savedEmail = localStorage.getItem('savedEmail')
-  const savedPassword = localStorage.getItem('savedPassword')
-  if (savedEmail && savedPassword) {
+  if (savedEmail) {
     email.value = savedEmail
-    password.value = savedPassword
     rememberMe.value = true
   }
 })
@@ -92,10 +85,8 @@ async function onSubmit() {
 
   if (rememberMe.value) {
     localStorage.setItem('savedEmail', email.value)
-    localStorage.setItem('savedPassword', password.value)
   } else {
     localStorage.removeItem('savedEmail')
-    localStorage.removeItem('savedPassword')
   }
 
   try {

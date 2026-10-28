@@ -20,14 +20,18 @@ contextBridge.exposeInMainWorld('electron', {
   ) =>
     ipcRenderer.invoke('update-product', productId, productData, imageFile, imageDescriptionFile), //
   deleteProduct: (productId) => ipcRenderer.invoke('delete-product', productId), //
-  uploadExcel: (excelFile) => ipcRenderer.invoke('upload-excel', excelFile), //
+  bulkUpsertProducts: (rows) => ipcRenderer.invoke('bulk-upsert-products', rows),
   checkAuthStatus: () => ipcRenderer.invoke('check-auth-status'), //
-  registerUser: (email, password) => ipcRenderer.invoke('register-user', email, password), //
+  createAppUser: (userData) => ipcRenderer.invoke('create-app-user', userData),
 
   loadInterest: () => ipcRenderer.invoke('load-interest'),
-  updateInterest: (docId, value) => ipcRenderer.invoke('update-interest', docId, value),
+  updateInterest: (docId, value, margin) =>
+    ipcRenderer.invoke('update-interest', docId, value, margin),
+  loadDiscountConfig: () => ipcRenderer.invoke('load-discount-config'),
+  updateMaxDiscount: (value) => ipcRenderer.invoke('update-max-discount', value),
   resetPassword: (email) => ipcRenderer.invoke('reset-password', email),
 
   getUsers: () => ipcRenderer.invoke('get-users'),
-  updateUserRole: (userId, newRole) => ipcRenderer.invoke('update-user-role', userId, newRole),
+  setUserStatus: (userId, status) => ipcRenderer.invoke('set-user-status', userId, status),
+  getCurrentUserId: () => ipcRenderer.invoke('get-current-user-id'),
 })

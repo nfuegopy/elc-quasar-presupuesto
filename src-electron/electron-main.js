@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron' //
 import path from 'node:path' //
 import os from 'node:os' //
 import { fileURLToPath } from 'node:url' //
+import crypto from 'node:crypto'
 
 // --- COMIENZO DE CÓDIGO AÑADIDO PARA LA INICIALIZACIÓN DE FIREBASE EN EL PROCESO PRINCIPAL ---
 import { initializeApp } from 'firebase/app' //
@@ -24,11 +25,9 @@ import {
   updateDoc, //
   deleteDoc, //
   setDoc, //
+  writeBatch,
 } from 'firebase/firestore' //
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage' //
-
-// Importación de XLSX para manejar archivos Excel (requerido para la carga masiva)
-import XLSX from 'xlsx' //
 
 // Configuración de Firebase usando variables de entorno para el proceso principal (sin prefijo VITE_)
 const firebaseConfig = {
@@ -47,7 +46,13 @@ const firebaseApp = initializeApp(firebaseConfig) //
 const auth = getAuth(firebaseApp) //
 const db = getFirestore(firebaseApp) //
 const storage = getStorage(firebaseApp) //
-// --- FIN DEL CÓDIGO AÑADIDO PARA FIREBASE Y XLSX ---
+
+// App secundaria solo para crear cuentas: createUserWithEmailAndPassword inicia sesión
+// con el usuario nuevo, y así no se cierra la sesión del administrador en la app principal.
+const provisioningApp = initializeApp(firebaseConfig, 'provisioning')
+const provisioningAuth = getAuth(provisioningApp)
+const provisioningDb = getFirestore(provisioningApp)
+// --- FIN DEL CÓDIGO AÑADIDO PARA FIREBASE ---
 
 // needed in case process is undefined under Linux
 const platform = process.platform || os.platform() //
@@ -143,18 +148,45 @@ ipcMain.handle('get-users', async () => {
   }
 })
 
-// Actualizar el rol de un usuario
-ipcMain.handle('update-user-role', async (event, userId, newRole) => {
+// Estados de usuario: activo (role = admin/seller), bloqueado o eliminado.
+// Se guardan en "role" porque la app móvil solo deja entrar a role === 'seller' y el panel
+// solo a role === 'admin'; así bloqueado/eliminado quedan sin acceso sin tocar la app.
+// "eliminado" es un borrado lógico: el documento se conserva pero no se lista.
+ipcMain.handle('set-user-status', async (event, userId, status) => {
   try {
+    if (userId === auth.currentUser?.uid) {
+      throw new Error('No puedes bloquear ni eliminar tu propio usuario.')
+    }
     const userDocRef = doc(db, 'users', userId)
-    await updateDoc(userDocRef, {
-      role: newRole,
-    })
+    const snapshot = await getDoc(userDocRef)
+    if (!snapshot.exists()) throw new Error('Usuario no encontrado.')
+    const user = snapshot.data()
+    const activeRole = ['admin', 'seller'].includes(user.role)
+      ? user.role
+      : user.previous_role || 'seller'
+
+    let changes
+    if (status === 'activo') {
+      changes = { role: activeRole }
+    } else if (status === 'bloqueado') {
+      changes = { role: 'bloqueado', previous_role: activeRole }
+    } else if (status === 'eliminado') {
+      changes = {
+        role: 'eliminado',
+        previous_role: activeRole,
+        deleted_at: new Date().toISOString(),
+      }
+    } else {
+      throw new Error(`Estado inválido: ${status}`)
+    }
+    await updateDoc(userDocRef, changes)
     return { success: true }
   } catch (error) {
     return { success: false, error: error.message }
   }
 })
+
+ipcMain.handle('get-current-user-id', async () => auth.currentUser?.uid || null)
 
 // Manejar login
 ipcMain.handle('login', async (event, email, password) => {
@@ -346,59 +378,43 @@ ipcMain.handle('delete-product', async (event, productId) => {
   }
 })
 
-// Cargar archivo Excel masivamente
-ipcMain.handle('upload-excel', async (event, excelFile) => {
-  //
+// Actualización / alta masiva de productos desde CSV (no toca imágenes)
+// rows: [{ id?, data }] -> con id se actualizan solo los campos enviados, sin id se crea
+ipcMain.handle('bulk-upsert-products', async (event, rows) => {
   try {
-    //
-    // Leer el archivo Excel
-    const workbook = XLSX.read(Buffer.from(excelFile.data), { type: 'buffer' }) //
-    const sheetName = workbook.SheetNames[0] //
-    const sheet = workbook.Sheets[sheetName] //
-    const data = XLSX.utils.sheet_to_json(sheet) //
-
-    let count = 0 //
-    for (const row of data) {
-      //
-      // Mapear los campos del Excel a la estructura de Firestore
-      const productData = {
-        //
-        articleNumber: row['Número de artículo'] || '', //
-        name: row['Descripción del artículo'] || '', //
-        type: row['Tipo'] || '', //
-        brand: row['Marca'] ? row['Marca'].toLowerCase() : '', //
-        model: row['Modelo'] || '', //
-        fuelType: '', // No está en el Excel, dejar vacío
-        price: 0, // No está en el Excel, establecer en 0
-        currency: 'USD', // Predeterminado en USD
-        features: '', // No está en el Excel, dejar vacío
-        image_url: '', // No hay imágenes en el Excel
-        image_description_url: '', // No hay imágenes en el Excel
-        created_at: new Date().toISOString(), //
+    let updated = 0
+    let created = 0
+    // Firestore admite hasta 500 operaciones por batch
+    for (let i = 0; i < rows.length; i += 400) {
+      const batch = writeBatch(db)
+      for (const row of rows.slice(i, i + 400)) {
+        if (row.id) {
+          batch.update(doc(db, 'products', row.id), row.data)
+          updated++
+        } else {
+          batch.set(doc(collection(db, 'products')), {
+            articleNumber: '',
+            name: '',
+            type: '',
+            brand: '',
+            fuelType: '',
+            model: '',
+            price: 0,
+            currency: 'USD',
+            features: '',
+            ...row.data,
+            image_url: '',
+            image_description_url: '',
+            created_at: new Date().toISOString(),
+          })
+          created++
+        }
       }
-
-      // Validar campos obligatorios
-      if (
-        //
-        !productData.articleNumber || //
-        !productData.name || //
-        !productData.type || //
-        !productData.brand || //
-        !productData.model //
-      ) {
-        console.warn('Fila omitida por datos incompletos:', productData) //
-        continue //
-      }
-
-      // Guardar en Firestore
-      await addDoc(collection(db, 'products'), productData) //
-      count++ //
+      await batch.commit()
     }
-
-    return { success: true, count } //
+    return { success: true, updated, created }
   } catch (error) {
-    //
-    return { success: false, error: error.message } //
+    return { success: false, error: error.message }
   }
 })
 
@@ -414,43 +430,34 @@ ipcMain.handle('check-auth-status', async () => {
   })
 })
 
-ipcMain.handle('register-user', async (event, email, password) => {
-  //
+// Crear un usuario (vendedor o admin) y enviarle el enlace para definir su contraseña
+ipcMain.handle('create-app-user', async (event, { email, nombre, apellido, role }) => {
   try {
-    //
-    // 1. Crear el usuario en Firebase Authentication
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password) //
-    const user = userCredential.user //
+    // Contraseña aleatoria descartable: el usuario define la suya desde el correo
+    const tempPassword = crypto.randomBytes(24).toString('base64url')
+    const { user } = await createUserWithEmailAndPassword(provisioningAuth, email, tempPassword)
 
-    // 2. Guardar el rol en Firestore (o actualizar si ya existe)
-    // Usamos setDoc con merge:true para no sobrescribir otros campos si ya hay un documento para ese UID
-    await setDoc(
-      //
-      doc(db, 'users', user.uid), //
-      {
-        //
-        email: user.email, //
-        role: 'admin', // Asignar el rol de administrador
-        created_at: new Date().toISOString(), //
-      },
-      { merge: true }, //
-    )
+    // Se escribe con la sesión del propio usuario nuevo (igual que lo hacía la app móvil)
+    await setDoc(doc(provisioningDb, 'users', user.uid), {
+      email: user.email,
+      nombre,
+      apellido,
+      role,
+      created_at: new Date().toISOString(),
+    })
+    await signOut(provisioningAuth)
 
-    return { success: true, uid: user.uid } //
+    await sendPasswordResetEmail(auth, email)
+    return { success: true, uid: user.uid }
   } catch (error) {
-    //
-    let errorMessage = error.message //
+    await signOut(provisioningAuth).catch(() => {})
+    let errorMessage = error.message
     if (error.code === 'auth/email-already-in-use') {
-      //
-      errorMessage = 'El correo electrónico ya está en uso.' //
-    } else if (error.code === 'auth/weak-password') {
-      //
-      errorMessage = 'La contraseña es demasiado débil (debe tener al menos 6 caracteres).' //
+      errorMessage = 'El correo electrónico ya está en uso.'
     } else if (error.code === 'auth/invalid-email') {
-      //
-      errorMessage = 'El formato del correo electrónico es inválido.' //
+      errorMessage = 'El formato del correo electrónico es inválido.'
     }
-    return { success: false, error: errorMessage } //
+    return { success: false, error: errorMessage }
   }
 })
 
@@ -472,20 +479,53 @@ ipcMain.handle('load-interest', async () => {
 })
 
 // Actualizar (o crear si no existe) el valor de interés
-ipcMain.handle('update-interest', async (event, docId, value) => {
+// `margin` (margen para cargos bancarios, texto con coma: "2") es opcional
+ipcMain.handle('update-interest', async (event, docId, value, margin) => {
   try {
+    const fields = { interes: value }
+    if (margin !== undefined) fields.margen_cargos = margin
     if (docId) {
       // Si ya tenemos un ID de documento, lo actualizamos
-      await updateDoc(doc(db, 'interes', docId), { interes: value })
+      await updateDoc(doc(db, 'interes', docId), fields)
       return { success: true, id: docId }
     } else {
       // Si no hay ID (primera vez o no encontrado), creamos un nuevo documento
       const newDocRef = await addDoc(collection(db, 'interes'), {
-        interes: value,
+        ...fields,
         created_at: new Date().toISOString(),
       })
       return { success: true, id: newDocRef.id }
     }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+})
+
+// Parámetros de descuento (AMIN-09): documento fijo para que la app lo lea directo
+const discountConfigRef = () => doc(db, 'config', 'descuentos')
+
+ipcMain.handle('load-discount-config', async () => {
+  try {
+    const snap = await getDoc(discountConfigRef())
+    return { success: true, data: snap.exists() ? snap.data() : null }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('update-max-discount', async (event, value) => {
+  try {
+    const percentage = Number(value)
+    if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
+      return { success: false, error: 'El porcentaje debe estar entre 0 y 100.' }
+    }
+    const data = {
+      max_discount_percentage: percentage,
+      updated_at: new Date().toISOString(),
+      updated_by: auth.currentUser?.email || null,
+    }
+    await setDoc(discountConfigRef(), data, { merge: true })
+    return { success: true, data }
   } catch (error) {
     return { success: false, error: error.message }
   }

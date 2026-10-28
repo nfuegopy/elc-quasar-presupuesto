@@ -1,27 +1,53 @@
 <template>
-  <q-layout view="hHh lpR fFf">
-    <q-header elevated class="bg-primary text-white" height-hint="98">
-      <!-- <q-toolbar>
-        <q-toolbar-title>
-          <q-avatar size="32px" class="q-mr-sm">
-            <img src="~assets/logo.png" alt="LoanCalc Admin Logo" />
-          </q-avatar>
-          LoanCalc Admin
-        </q-toolbar-title>
-      </q-toolbar> -->
+  <q-layout view="lHh LpR lFf" class="admin-layout">
+    <q-drawer
+      v-model="drawerOpen"
+      show-if-above
+      :width="232"
+      :breakpoint="700"
+      class="admin-drawer"
+    >
+      <div class="drawer-brand">
+        <img src="~assets/logo.png" alt="Logo" />
+        <div>
+          <div class="brand-title">Panel Admin</div>
+          <div class="brand-subtitle">Presupuestos</div>
+        </div>
+      </div>
 
-      <q-toolbar class="main-tabs-toolbar">
-        <q-tabs align="left" class="main-tabs">
-          <q-route-tab to="/home" label="Inicio" icon="home" />
-          <q-route-tab to="/dashboard" label="Carga Productos" icon="add_shopping_cart" />
-          <q-route-tab to="/interes" label="Interes" icon="attach_money" />
-          <q-route-tab to="/users" label="Usuarios" icon="group" />
-        </q-tabs>
+      <q-list class="q-px-sm q-pt-md">
+        <q-item
+          v-for="link in links"
+          :key="link.to"
+          :to="link.to"
+          clickable
+          v-ripple
+          class="nav-item"
+          active-class="nav-item--active"
+        >
+          <q-item-section avatar>
+            <q-icon :name="link.icon" />
+          </q-item-section>
+          <q-item-section>{{ link.label }}</q-item-section>
+        </q-item>
+      </q-list>
 
-        <q-space />
-        <q-btn flat label="Cerrar Sesión" @click="onLogout" class="q-ml-md">
-          <q-icon name="logout" class="q-ml-sm" />
-        </q-btn>
+      <div class="drawer-footer q-pa-sm">
+        <q-btn
+          flat
+          no-caps
+          class="full-width"
+          icon="logout"
+          label="Cerrar sesión"
+          @click="onLogout"
+        />
+      </div>
+    </q-drawer>
+
+    <q-header class="admin-header">
+      <q-toolbar>
+        <q-btn flat round dense icon="menu" class="lt-md" @click="drawerOpen = !drawerOpen" />
+        <q-toolbar-title class="page-title">{{ currentTitle }}</q-toolbar-title>
       </q-toolbar>
     </q-header>
 
@@ -32,81 +58,106 @@
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 
+const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
 
-// Lógica para cerrar sesión
-async function onLogout() {
-  console.log('Botón de Cerrar Sesión Clicked') // <-- Añadido para depuración
+const drawerOpen = ref(false)
+
+const links = [
+  { to: '/home', label: 'Inicio', icon: 'space_dashboard' },
+  { to: '/dashboard', label: 'Productos', icon: 'inventory_2' },
+  { to: '/users', label: 'Usuarios', icon: 'group' },
+  { to: '/interes', label: 'Parámetros', icon: 'tune' },
+]
+
+const currentTitle = computed(() => links.find((l) => l.to === route.path)?.label || '')
+
+function onLogout() {
   $q.dialog({
-    title: 'Confirmar Cierre de Sesión',
-    message: '¿Estás seguro de que quieres cerrar sesión?',
-    cancel: true,
-    persistent: true,
+    title: 'Cerrar sesión',
+    message: '¿Seguro que quieres cerrar sesión?',
+    cancel: { label: 'Cancelar', flat: true },
+    ok: { label: 'Cerrar sesión', color: 'primary', unelevated: true },
   }).onOk(async () => {
     try {
-      console.log('Confirmado cierre de sesión, llamando a window.electron.logout()') // <-- Añadido para depuración
-      await window.electron.logout() // Llama a la función de logout expuesta por Electron
-      console.log('Logout IPC llamado, redirigiendo a /login') // <-- Añadido para depuración
-      router.push('/login') // Redirige al login después de cerrar sesión
-      $q.notify({
-        message: 'Sesión cerrada correctamente.',
-        color: 'info',
-        icon: 'logout',
-        position: 'top-right',
-      })
+      await window.electron.logout()
+      router.push('/login')
     } catch (error) {
-      console.error('Error durante el cierre de sesión:', error) // <-- Añadido para depuración
-      $q.notify({
-        message: 'Error al cerrar sesión: ' + error.message,
-        color: 'negative',
-        icon: 'warning',
-        position: 'top-right',
-      })
+      $q.notify({ type: 'negative', message: 'Error al cerrar sesión: ' + error.message })
     }
   })
 }
 </script>
 
 <style lang="scss" scoped>
-.bg-primary {
-  background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%) !important;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+.admin-drawer {
+  display: flex;
+  flex-direction: column;
 }
 
-.q-toolbar-title {
-  font-family: 'Poppins', sans-serif;
-  font-weight: 600;
-  font-size: 1.3rem;
+:deep(.q-drawer__content) {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-right: 1px solid $border-color;
+}
+
+.drawer-brand {
   display: flex;
   align-items: center;
-}
+  gap: 12px;
+  padding: 20px 16px;
+  border-bottom: 1px solid $border-color;
 
-.main-tabs-toolbar {
-  // Asegura que esta toolbar tenga un fondo si la principal es transparente o no está elevada
-  background: linear-gradient(
-    90deg,
-    #2a5298 0%,
-    #1e3c72 100%
-  ) !important; // Un tono similar al header principal
-  min-height: 48px; // Altura estándar para toolbars con tabs
-}
-
-.main-tabs {
-  // El fondo de las tabs está ahora en .main-tabs-toolbar
-  .q-tab {
-    padding: 0 15px;
-    min-width: unset;
-    text-transform: none;
-    font-weight: 500;
-    font-size: 0.95rem;
-
-    .q-tab__indicator {
-      height: 3px;
-    }
+  img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
   }
+}
+
+.brand-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: $primary;
+}
+
+.brand-subtitle {
+  font-size: 0.8rem;
+  color: $text-muted;
+}
+
+.nav-item {
+  border-radius: 10px;
+  margin-bottom: 4px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.nav-item--active {
+  background: rgba($primary, 0.1);
+  color: $primary;
+}
+
+.drawer-footer {
+  margin-top: auto;
+  border-top: 1px solid $border-color;
+  color: #475569;
+}
+
+.admin-header {
+  background: $page-bg;
+  color: #0f172a;
+  border-bottom: 1px solid $border-color;
+}
+
+.page-title {
+  font-weight: 600;
+  font-size: 1.15rem;
 }
 </style>

@@ -25,7 +25,7 @@ export default route(function (/* { store, ssrContext } */) {
   // --- Descomenta todo este bloque (si no lo has hecho ya) ---
   Router.beforeEach(async (to, from, next) => {
     // Rutas que no requieren autenticación
-    const publicPages = ['/login', '/register'] // <-- AÑADE '/register' AQUÍ
+    const publicPages = ['/login']
     const authRequired = !publicPages.includes(to.path)
 
     // En una app Electron, window.electron estará disponible
