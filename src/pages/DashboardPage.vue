@@ -401,12 +401,27 @@ const withExisting = (base, field) =>
   [...new Set([...base, ...machinery.value.map((p) => p[field]).filter(Boolean)])].sort()
 const typeOptions = computed(() =>
   withExisting(
-    ['pala cargadora', 'tractor', 'montacargas', 'apilador', 'retro pala', 'excavadora'],
+    [
+      'pala cargadora',
+      'tractor',
+      'montacargas',
+      'apilador',
+      'retro pala',
+      'excavadora',
+      'transpaleta',
+      'separador de pedidos',
+      'generadores',
+      'sembradoras',
+      'forestal',
+    ],
     'type',
   ),
 )
 const brandOptions = computed(() =>
-  withExisting(['noblelift', 'michigan', 'koten', 'maximal', 'lugong', 'hanomag'], 'brand'),
+  withExisting(
+    ['noblelift', 'michigan', 'koten', 'maximal', 'lugong', 'hanomag', 'fercam', 'xuvol', 'otros'],
+    'brand',
+  ),
 )
 
 const fieldLabels = Object.fromEntries(CSV_COLUMNS.map((c) => [c.key, c.header]))
