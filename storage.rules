@@ -1,0 +1,22 @@
+rules_version = '2';
+
+// Reglas de Storage: imágenes de productos (products/...). Las ve cualquier
+// usuario activo y solo un admin las sube o borra. El rol se lee del perfil en
+// Firestore (users/{uid}.role).
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function role() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    match /products/{file=**} {
+      allow read: if request.auth != null && role() in ['admin', 'seller'];
+      allow write: if request.auth != null && role() == 'admin';
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

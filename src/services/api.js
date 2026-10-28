@@ -14,7 +14,6 @@ import {
   inMemoryPersistence,
 } from 'firebase/auth'
 import {
-  getFirestore,
   collection,
   getDocs,
   addDoc,
@@ -31,16 +30,13 @@ import { auth, db, storage, firebaseConfig } from 'boot/firebase'
 // App secundaria solo para crear cuentas: createUserWithEmailAndPassword inicia
 // sesión con el usuario nuevo, y así no se cierra la sesión del administrador.
 // En memoria para que esa sesión no quede guardada en el navegador.
-let provisioning = null
-function provisioningServices() {
-  if (!provisioning) {
+let provisioningAuth = null
+function getProvisioningAuth() {
+  if (!provisioningAuth) {
     const provisioningApp = initializeApp(firebaseConfig, 'provisioning')
-    provisioning = {
-      auth: initializeAuth(provisioningApp, { persistence: inMemoryPersistence }),
-      db: getFirestore(provisioningApp),
-    }
+    provisioningAuth = initializeAuth(provisioningApp, { persistence: inMemoryPersistence })
   }
-  return provisioning
+  return provisioningAuth
 }
 
 // Usuario actual una vez que Firebase terminó de restaurar la sesión
@@ -264,18 +260,19 @@ export default {
 
   // Crea un usuario (vendedor o admin) y le envía el enlace para definir su contraseña
   async createAppUser({ email, nombre, apellido, role }) {
-    const { auth: newAuth, db: newDb } = provisioningServices()
+    const newAuth = getProvisioningAuth()
     try {
       const { user } = await createUserWithEmailAndPassword(newAuth, email, randomPassword())
-      // Se escribe con la sesión del propio usuario nuevo (igual que la app móvil)
-      await setDoc(doc(newDb, 'users', user.uid), {
+      await signOut(newAuth)
+      // El perfil (con su rol) lo escribe la sesión del administrador: las reglas
+      // de Firestore no dejan que un usuario se asigne su propio rol
+      await setDoc(doc(db, 'users', user.uid), {
         email: user.email,
         nombre,
         apellido,
         role,
         created_at: new Date().toISOString(),
       })
-      await signOut(newAuth)
       await sendPasswordResetEmail(auth, email)
       return { success: true, uid: user.uid }
     } catch (error) {

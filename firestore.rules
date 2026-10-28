@@ -1,0 +1,81 @@
+rules_version = '2';
+
+// Reglas de Firestore del proyecto presupuestos-6a894 (app de vendedores +
+// panel de administración web/Electron).
+//
+// El rol de cada usuario está en users/{uid}.role:
+//   'admin'     -> panel de administración
+//   'seller'    -> app móvil de vendedores
+//   'bloqueado' / 'eliminado' -> sin acceso
+// Solo un admin puede crear o cambiar perfiles: así nadie puede asignarse un
+// rol registrándose directo contra Firebase Auth.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return signedIn() && role() == 'admin';
+    }
+
+    function isActive() {
+      return signedIn() && role() in ['admin', 'seller'];
+    }
+
+    // Perfiles: cada uno lee el suyo (la app y el panel lo leen al iniciar
+    // sesión); el admin lee y escribe todos.
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // Catálogo (maquinaria y beneficios)
+    match /products/{id} {
+      allow read: if isActive();
+      allow write: if isAdmin();
+    }
+
+    // Parámetros: descuento máximo (config/descuentos) y tasa/margen (interes)
+    match /config/{id} {
+      allow read: if isActive();
+      allow write: if isAdmin();
+    }
+    match /interes/{id} {
+      allow read: if isActive();
+      allow write: if isAdmin();
+    }
+
+    // Clientes: compartidos entre vendedores (la app busca por RUC y
+    // reutiliza el cliente aunque lo haya cargado otro vendedor)
+    match /clients/{id} {
+      allow read: if isActive();
+      allow create: if isActive() && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isActive();
+      allow delete: if isAdmin();
+    }
+
+    // Presupuestos: el vendedor crea los suyos y no se modifican después
+    match /budgets/{id} {
+      allow read: if isAdmin() || (isActive() && resource.data.createdBy == request.auth.uid);
+      allow create: if isActive() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Módulo de cotizaciones de versiones anteriores de la app
+    match /cotizaciones/{id} {
+      allow read, create: if isActive();
+      allow update, delete: if isAdmin();
+    }
+
+    // Todo lo demás, cerrado
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
