@@ -58,6 +58,7 @@
 </template>
 
 <script setup>
+import api from 'src/services/api'
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
@@ -85,7 +86,7 @@ function onLogout() {
     ok: { label: 'Cerrar sesión', color: 'primary', unelevated: true },
   }).onOk(async () => {
     try {
-      await window.electron.logout()
+      await api.logout()
       router.push('/login')
     } catch (error) {
       $q.notify({ type: 'negative', message: 'Error al cerrar sesión: ' + error.message })

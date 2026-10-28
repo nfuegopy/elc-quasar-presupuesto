@@ -345,6 +345,7 @@
 </template>
 
 <script setup>
+import api from 'src/services/api'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
@@ -465,7 +466,7 @@ const displayValue = (field, value) =>
 async function loadProducts() {
   loadingTable.value = true
   try {
-    products.value = await window.electron.loadProducts()
+    products.value = await api.loadProducts()
   } catch (error) {
     $q.notify({ type: 'negative', message: 'Error al cargar productos: ' + error.message })
   } finally {
@@ -506,13 +507,13 @@ async function onSubmitProductForm() {
     const imageDescriptionFile = await toFilePayload(imageDescription)
 
     const result = isEditing.value
-      ? await window.electron.updateProduct(
+      ? await api.updateProduct(
           editingProductId.value,
           productData,
           imageFile,
           imageDescriptionFile,
         )
-      : await window.electron.addProduct(productData, imageFile, imageDescriptionFile)
+      : await api.addProduct(productData, imageFile, imageDescriptionFile)
 
     if (!result.success) throw new Error(result.error)
     $q.notify({
@@ -535,7 +536,7 @@ function confirmDelete(product) {
     cancel: { label: 'Cancelar', flat: true },
     ok: { label: 'Eliminar', color: 'negative', unelevated: true },
   }).onOk(async () => {
-    const result = await window.electron.deleteProduct(product.id)
+    const result = await api.deleteProduct(product.id)
     if (result.success) {
       $q.notify({ type: 'positive', message: 'Producto eliminado.' })
       loadProducts()
@@ -580,8 +581,8 @@ async function applyImport() {
       ...importPlan.value.updates.map((u) => ({ id: u.id, data: u.data })),
       ...importPlan.value.creates.map((c) => ({ data: c.data })),
     ]
-    // El plan es reactivo (Proxy de Vue) y el IPC de Electron no puede clonarlo: se envía plano
-    const result = await window.electron.bulkUpsertProducts(JSON.parse(JSON.stringify(rows)))
+    // El plan es reactivo (Proxy de Vue): se envía como objetos planos
+    const result = await api.bulkUpsertProducts(JSON.parse(JSON.stringify(rows)))
     if (!result.success) throw new Error(result.error)
     $q.notify({
       type: 'positive',

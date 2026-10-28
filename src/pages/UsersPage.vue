@@ -199,6 +199,7 @@
 </template>
 
 <script setup>
+import api from 'src/services/api'
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 
@@ -261,7 +262,7 @@ const columns = [
 async function loadUsers() {
   loadingTable.value = true
   try {
-    const result = await window.electron.getUsers()
+    const result = await api.getUsers()
     if (!result.success) throw new Error(result.error)
     // Los eliminados (borrado lógico) no se muestran
     users.value = result.data.filter((u) => u.role !== 'eliminado')
@@ -286,7 +287,7 @@ async function createUser() {
       email: fullEmail(),
       role: form.value.role,
     }
-    const result = await window.electron.createAppUser(payload)
+    const result = await api.createAppUser(payload)
     if (!result.success) throw new Error(result.error)
     $q.notify({
       type: 'positive',
@@ -302,7 +303,7 @@ async function createUser() {
 }
 
 async function resendLink(user) {
-  const result = await window.electron.resetPassword(user.email)
+  const result = await api.resetPassword(user.email)
   if (result.success) {
     $q.notify({ type: 'positive', message: `Enlace enviado a ${user.email}.` })
   } else {
@@ -341,7 +342,7 @@ function changeStatus(user, status) {
     cancel: { label: 'Cancelar', flat: true },
     ok: { label: action.title.split(' ')[0], color: action.color, unelevated: true },
   }).onOk(async () => {
-    const result = await window.electron.setUserStatus(user.id, status)
+    const result = await api.setUserStatus(user.id, status)
     if (result.success) {
       $q.notify({ type: 'positive', message: `Usuario ${action.done}.` })
       loadUsers()
@@ -352,7 +353,7 @@ function changeStatus(user, status) {
 }
 
 onMounted(async () => {
-  currentUserId.value = await window.electron.getCurrentUserId()
+  currentUserId.value = await api.getCurrentUserId()
   loadUsers()
 })
 </script>

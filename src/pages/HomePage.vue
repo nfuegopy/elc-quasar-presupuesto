@@ -39,6 +39,7 @@
 </template>
 
 <script setup>
+import api from 'src/services/api'
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { isBenefit } from 'src/utils/productKinds'
@@ -112,8 +113,8 @@ const actions = [
 onMounted(async () => {
   try {
     const [productList, usersResult] = await Promise.all([
-      window.electron.loadProducts(),
-      window.electron.getUsers(),
+      api.loadProducts(),
+      api.getUsers(),
     ])
     products.value = productList
     users.value = usersResult.success ? usersResult.data : []

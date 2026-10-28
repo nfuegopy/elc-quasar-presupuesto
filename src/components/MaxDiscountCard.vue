@@ -53,6 +53,7 @@
 </template>
 
 <script setup>
+import api from 'src/services/api'
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { blockNonDecimalKeys, setDecimal } from 'src/utils/numberInput'
@@ -90,7 +91,7 @@ const updatedInfo = computed(() => {
 async function load() {
   loading.value = true
   try {
-    const result = await window.electron.loadDiscountConfig()
+    const result = await api.loadDiscountConfig()
     if (!result.success) throw new Error(result.error)
     config.value = result.data
     value.value = toText(result.data?.max_discount_percentage)
@@ -107,7 +108,7 @@ async function load() {
 async function save() {
   saving.value = true
   try {
-    const result = await window.electron.updateMaxDiscount(toNumber(value.value))
+    const result = await api.updateMaxDiscount(toNumber(value.value))
     if (!result.success) throw new Error(result.error)
     config.value = result.data
     value.value = toText(result.data.max_discount_percentage)

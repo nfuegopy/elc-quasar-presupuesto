@@ -40,6 +40,8 @@ const storage = getStorage(app)
 
 // Exportar los servicios para que estén disponibles en el resto de tu aplicación Quasar
 export {
+  firebaseConfig,
+  app as firebaseApp,
   auth,
   db,
   storage,

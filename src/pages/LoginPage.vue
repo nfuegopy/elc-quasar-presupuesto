@@ -56,6 +56,7 @@
 </template>
 
 <script setup>
+import api from 'src/services/api'
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
@@ -90,7 +91,7 @@ async function onSubmit() {
   }
 
   try {
-    const result = await window.electron.login(email.value, password.value)
+    const result = await api.login(email.value, password.value)
 
     if (result.success) {
       router.push('/home')
@@ -124,7 +125,7 @@ async function handleForgotPassword() {
     }
 
     try {
-      const result = await window.electron.resetPassword(data)
+      const result = await api.resetPassword(data)
       if (result.success) {
         $q.notify({
           color: 'positive',

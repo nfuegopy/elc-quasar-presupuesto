@@ -7,6 +7,7 @@ import {
   createWebHashHistory,
 } from 'vue-router'
 import routes from './routes' //
+import api from 'src/services/api'
 
 export default route(function (/* { store, ssrContext } */) {
   const createHistory = process.env.SERVER
@@ -28,8 +29,8 @@ export default route(function (/* { store, ssrContext } */) {
     const publicPages = ['/login']
     const authRequired = !publicPages.includes(to.path)
 
-    // En una app Electron, window.electron estará disponible
-    const isAuthenticated = await window.electron.checkAuthStatus() //
+    // Sesión abierta y con rol admin (funciona igual en web y en Electron)
+    const isAuthenticated = await api.checkAuthStatus()
 
     if (authRequired && !isAuthenticated) {
       next('/login') // Redirige al login si requiere autenticación y no está logueado

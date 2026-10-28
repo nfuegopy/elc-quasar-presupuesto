@@ -70,6 +70,7 @@
 </template>
 
 <script setup>
+import api from 'src/services/api'
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import MaxDiscountCard from 'components/MaxDiscountCard.vue'
@@ -99,7 +100,7 @@ const percentRules = [
 // Cargar el valor de interés desde Firestore
 async function loadInterest() {
   try {
-    const result = await window.electron.loadInterest()
+    const result = await api.loadInterest()
     if (result.success && result.data) {
       currentInterest.value = result.data.interes
       initialInterest.value = result.data.interes
@@ -133,7 +134,7 @@ async function loadInterest() {
 async function saveInterest() {
   loadingSave.value = true
   try {
-    const result = await window.electron.updateInterest(
+    const result = await api.updateInterest(
       interestDocId.value,
       currentInterest.value,
       currentMargin.value,
