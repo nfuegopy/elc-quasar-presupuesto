@@ -24,7 +24,14 @@ import {
   setDoc,
   writeBatch,
 } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
+import {
+  ref,
+  uploadBytes,
+  uploadBytesResumable,
+  getDownloadURL,
+  getMetadata,
+  deleteObject,
+} from 'firebase/storage'
 import { auth, db, storage, firebaseConfig } from 'boot/firebase'
 
 // App secundaria solo para crear cuentas: createUserWithEmailAndPassword inicia
@@ -80,6 +87,9 @@ const productFields = (data) => ({
 })
 
 const discountConfigRef = () => doc(db, 'config', 'descuentos')
+
+// Siempre se guarda en el mismo lugar: subir una versión nueva reemplaza la anterior
+const apkRef = () => ref(storage, 'apk/app-release.apk')
 
 export default {
   // --- Sesión ---
@@ -380,5 +390,42 @@ export default {
     } catch (error) {
       return { success: false, error: error.message }
     }
+  },
+  // --- App móvil (APK) ---
+  // Datos de la versión publicada, o data: null si todavía no se subió ninguna
+  async getApkInfo() {
+    try {
+      const metadata = await getMetadata(apkRef())
+      return {
+        success: true,
+        data: {
+          url: await getDownloadURL(apkRef()),
+          size: metadata.size,
+          updated: metadata.updated,
+          version: metadata.customMetadata?.version || '',
+          uploadedBy: metadata.customMetadata?.uploaded_by || '',
+        },
+      }
+    } catch (error) {
+      if (error.code === 'storage/object-not-found') return { success: true, data: null }
+      return { success: false, error: error.message }
+    }
+  },
+
+  // file: File del navegador; onProgress recibe 0..1
+  uploadApk(file, version, onProgress) {
+    return new Promise((resolve) => {
+      const task = uploadBytesResumable(apkRef(), file, {
+        contentType: 'application/vnd.android.package-archive',
+        contentDisposition: `attachment; filename="engine-presupuestos-${version}.apk"`,
+        customMetadata: { version, uploaded_by: auth.currentUser?.email || '' },
+      })
+      task.on(
+        'state_changed',
+        (s) => onProgress?.(s.bytesTransferred / s.totalBytes),
+        (error) => resolve({ success: false, error: error.message }),
+        () => resolve({ success: true }),
+      )
+    })
   },
 }

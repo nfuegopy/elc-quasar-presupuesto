@@ -74,6 +74,7 @@ const links = [
   { to: '/dashboard', label: 'Productos', icon: 'inventory_2' },
   { to: '/users', label: 'Usuarios', icon: 'group' },
   { to: '/interes', label: 'Parámetros', icon: 'tune' },
+  { to: '/app', label: 'App móvil', icon: 'install_mobile' },
 ]
 
 const currentTitle = computed(() => links.find((l) => l.to === route.path)?.label || '')
